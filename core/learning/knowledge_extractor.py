@@ -141,4 +141,41 @@ class UniversalKnowledgeExtractor:
             frame_text = pytesseract.image_to_string(frame_image)
             frames_data.append({
                 'timestamp': t,
-                'text': frame_text[:500]  # Limit
+                'text': frame_text[:500]  # Limit size
+            })
+        
+        # Extract audio if present
+        audio_data = None
+        if video.audio:
+            audio_path = f"temp_audio_{hash(file_path)}.wav"
+            video.audio.write_audiofile(audio_path)
+            audio_data = self._extract_from_audio(audio_path)
+            os.remove(audio_path)
+        
+        return {
+            'type': 'video',
+            'duration': duration,
+            'resolution': video.size,
+            'fps': video.fps,
+            'frames_analyzed': frames_data,
+            'audio_data': audio_data
+        }
+    
+    def learn_patterns(self, extracted_knowledge: Dict):
+        """Extract and learn patterns from knowledge"""
+        patterns = []
+        
+        if extracted_knowledge.get('type') == 'python_code':
+            # Learn coding patterns
+            for func in extracted_knowledge.get('functions', []):
+                patterns.append({
+                    'type': 'function_pattern',
+                    'name': func['name'],
+                    'arg_count': len(func['args']),
+                    'pattern': self._extract_pattern_from_text(func.get('docstring', ''))
+                })
+        
+        # Store patterns for evolution
+        self._store_patterns(patterns)
+        
+        return patterns
