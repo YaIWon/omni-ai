@@ -1,0 +1,10 @@
+# EXACT DEPENDENCIES - NO EXTRAS
+cryptography==41.0.7
+watchdog==3.0.0
+python-magic==0.4.27
+selenium==4.15.0
+undetected-chromedriver==3.5.4
+psutil==5.9.7
+requests==2.31.0
+pillow==10.1.0  # For screenshots
+pyautogui==0.9.54  # For real device interaction
