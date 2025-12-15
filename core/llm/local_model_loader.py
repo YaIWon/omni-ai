@@ -1,25 +1,31 @@
 """
-ACTUAL LANGUAGE MODEL - NOT JUST COMMAND PARSER
+ACTUAL LANGUAGE MODEL LOADER
 """
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import os
 from pathlib import Path
+from typing import Optional
 
 class RawLanguageModel:
     def __init__(self, model_name: str = "microsoft/phi-2"):
-        """
-        Phi-2: 2.7B parameter model, runs on consumer hardware
-        Alternative: "microsoft/phi-1_5", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-        """
         self.model_name = model_name
         self.model = None
         self.tokenizer = None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.load_model()
+        self.generator = None
+        self.device = self._get_device()
+        self.conversation_history = []
         
+    def _get_device(self):
+        if torch.cuda.is_available():
+            return "cuda"
+        elif torch.backends.mps.is_available():
+            return "mps"
+        else:
+            return "cpu"
+    
     def load_model(self):
-        """Load actual transformer model"""
+        """Load the actual language model"""
         print(f"Loading {self.model_name} on {self.device}...")
         
         try:
@@ -28,15 +34,17 @@ class RawLanguageModel:
                 trust_remote_code=True
             )
             
+            # Set padding token if not set
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
                 torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                device_map="auto" if self.device == "cuda" else None,
-                trust_remote_code=True,
-                low_cpu_mem_usage=True
+                device_map="auto" if self.device in ["cuda", "mps"] else None,
+                trust_remote_code=True
             )
             
-            # Create text generation pipeline
             self.generator = pipeline(
                 "text-generation",
                 model=self.model,
@@ -44,47 +52,28 @@ class RawLanguageModel:
                 device=0 if self.device == "cuda" else -1
             )
             
-            print(f"Model loaded successfully on {self.device}")
+            print(f"✅ Model loaded successfully on {self.device}")
+            return True
             
         except Exception as e:
-            print(f"Failed to load model: {e}")
-            print("Falling back to local download...")
-            self._download_and_load_local()
-    
-    def _download_and_load_local(self):
-        """Download model locally if online fails"""
-        local_path = Path("models") / self.model_name.split("/")[-1]
-        local_path.mkdir(parents=True, exist_ok=True)
-        
-        # Download using huggingface_hub if needed
-        from huggingface_hub import snapshot_download
-        snapshot_download(
-            repo_id=self.model_name,
-            local_dir=local_path,
-            local_dir_use_symlinks=False
-        )
-        
-        # Load from local
-        self.tokenizer = AutoTokenizer.from_pretrained(str(local_path))
-        self.model = AutoModelForCausalLM.from_pretrained(
-            str(local_path),
-            torch_dtype=torch.float16,
-            device_map="auto"
-        )
-        self.generator = pipeline(
-            "text-generation",
-            model=self.model,
-            tokenizer=self.tokenizer
-        )
+            print(f"❌ Model load failed: {e}")
+            # Fallback to local download
+            return self._download_and_load_local()
     
     def process(self, text: str, max_length: int = 500) -> str:
-        """Actual language processing - not just echo"""
+        """Process text through language model"""
         if self.generator is None:
-            return f"Echo (model not loaded): {text}"
+            return f"[Model not loaded] {text}"
         
         try:
+            # Add to conversation history
+            self.conversation_history.append(f"User: {text}")
+            
+            # Prepare prompt with history
+            prompt = "\n".join(self.conversation_history[-5:]) + "\nAI:"
+            
             response = self.generator(
-                text,
+                prompt,
                 max_length=max_length,
                 temperature=0.7,
                 do_sample=True,
@@ -92,17 +81,25 @@ class RawLanguageModel:
                 num_return_sequences=1
             )[0]['generated_text']
             
-            # Extract new text (remove input)
-            if text in response:
-                response = response.replace(text, "").strip()
+            # Extract AI response
+            if "AI:" in response:
+                ai_response = response.split("AI:")[-1].strip()
+            else:
+                ai_response = response.replace(prompt, "").strip()
             
-            return response
+            # Add to history
+            self.conversation_history.append(f"AI: {ai_response}")
+            
+            # Keep history manageable
+            if len(self.conversation_history) > 10:
+                self.conversation_history = self.conversation_history[-10:]
+            
+            return ai_response
             
         except Exception as e:
-            return f"Model error: {str(e)}"
+            return f"[Model error] {str(e)}"
     
-    def fine_tune_on_data(self, training_files: list):
-        """Actually learn from training data"""
-        # This would implement fine-tuning logic
-        # Requires significant compute resources
+    def fine_tune(self, training_data: list):
+        """Fine-tune model on new data"""
+        # Implementation would go here
         pass
