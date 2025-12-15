@@ -178,4 +178,91 @@ class AccountCreator:
         # Save to vault
         vault_file = self.vault_path / filename
         with open(vault_file, 'w') as f:
-            json.dump(
+            json.dump(encrypted_identity, f, indent=2)
+        
+        # Create usage log
+        self._create_usage_log(username, purpose)
+        
+        return vault_file
+    
+    def _encrypt_sensitive_data(self, identity: Dict) -> Dict:
+        """Encrypt sensitive fields"""
+        encrypted = identity.copy()
+        
+        # Encrypt sensitive fields
+        sensitive_fields = [
+            ('contact', 'email'),
+            ('contact', 'phone'),
+            ('digital', 'password'),
+            ('financial', 'credit_card'),
+            ('financial', 'bank_account'),
+            ('financial', 'ssn')
+        ]
+        
+        for category, field in sensitive_fields:
+            if field in identity.get(category, {}):
+                value = identity[category][field]
+                if value:
+                    encrypted[category][field] = self.cipher.encrypt(
+                        str(value).encode()
+                    ).decode()
+        
+        return encrypted
+    
+    def _create_usage_log(self, username: str, purpose: str):
+        """Create log entry for identity usage"""
+        log_entry = {
+            'username': username,
+            'timestamp': datetime.now().isoformat(),
+            'purpose': purpose,
+            'device_info': self._get_device_info(),
+            'ip_address': self._get_ip_address(),
+            'user_agent': self._get_user_agent()
+        }
+        
+        log_file = self.logs_path / f"{username}_usage.json"
+        
+        if log_file.exists():
+            with open(log_file, 'r') as f:
+                logs = json.load(f)
+        else:
+            logs = {'usage_history': []}
+        
+        logs['usage_history'].append(log_entry)
+        
+        with open(log_file, 'w') as f:
+            json.dump(logs, f, indent=2)
+    
+    def _get_device_info(self) -> Dict:
+        """Get current device information"""
+        import platform
+        import psutil
+        import socket
+        
+        return {
+            'hostname': socket.gethostname(),
+            'os': platform.system(),
+            'os_version': platform.version(),
+            'architecture': platform.machine(),
+            'processor': platform.processor(),
+            'ram_gb': round(psutil.virtual_memory().total / (1024**3), 2)
+        }
+    
+    def _get_ip_address(self) -> str:
+        """Get public IP"""
+        import requests
+        try:
+            response = requests.get('https://api.ipify.org?format=json', timeout=5)
+            return response.json().get('ip', 'unknown')
+        except:
+            return 'unknown'
+    
+    def _get_user_agent(self) -> str:
+        """Get user agent"""
+        import platform
+        return f"OmniAgent/{platform.system()}"
+    
+    def _generate_hash(self, text: str) -> str:
+        """Generate hash for identity"""
+        import hashlib
+        return hashlib.sha256(text.encode()).hexdigest()[:16]
