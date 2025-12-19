@@ -1,10 +1,58 @@
 # EXACT DEPENDENCIES - NO EXTRAS
+# Core dependencies
 cryptography==41.0.7
+selenium==4.15.0
+webdriver-manager==4.0.0
+PyGithub==1.59.0
+
+# Browser automation
+undetected-chromedriver==3.5.4
+
+# HTTP/Async
+requests==2.31.0
+aiohttp==3.9.0
+httpx==0.25.0
+
+# Security & Encryption
+python-gnupg==0.5.1
+keyring==24.3.0
+python-dotenv==1.0.0
+
+# System & File monitoring
 watchdog==3.0.0
 python-magic==0.4.27
-selenium==4.15.0
-undetected-chromedriver==3.5.4
 psutil==5.9.7
-requests==2.31.0
-pillow==10.1.0  # For screenshots
-pyautogui==0.9.54  # For real device interaction
+
+# Image/Screenshot handling
+pillow==10.1.0
+pyautogui==0.9.54
+
+# Additional utilities
+asyncio==3.4.3
+typing-extensions==4.8.0
+pydantic==2.5.0
+loguru==0.7.2
+colorama==0.4.6
+
+# AI/ML (for evolution)
+torch==2.1.0
+transformers==4.35.2
+numpy==1.24.3
+pandas==2.1.3
+scikit-learn==1.3.2
+
+# Quantum (for quantum evolution)
+qiskit==0.45.0
+qiskit-aer==0.12.2
+
+# Network/Device
+netifaces==0.11.0
+scapy==2.5.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
